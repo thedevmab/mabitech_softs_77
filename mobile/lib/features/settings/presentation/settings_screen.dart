@@ -60,7 +60,7 @@ class SettingsScreen extends ConsumerWidget {
             subtitle: Text(
               const String.fromEnvironment(
                 'API_BASE_URL',
-                defaultValue: 'http://10.0.2.2:3000/api/v1',
+                defaultValue: 'https://mabitechsofts77.vercel.app/api/v1',
               ),
             ),
           ),

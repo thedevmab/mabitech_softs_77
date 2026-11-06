@@ -11,20 +11,29 @@ Android/iOS client for the Daily Tips platform. Consumes the Next.js `/api/v1` A
 
 ## Configure API base URL
 
+Default (no dart-define) is production:
+
+`https://mabitechsofts77.vercel.app/api/v1`
+
 ```bash
+# Production (default)
+flutter run
+
+# Local Next.js override
 flutter run --dart-define=API_BASE_URL=http://10.0.2.2:3000/api/v1
 ```
 
+- Production → `https://mabitechsofts77.vercel.app/api/v1`
 - Android emulator → host machine: `http://10.0.2.2:3000/api/v1`
-- Physical device → your LAN IP: `http://192.168.x.x:3000/api/v1`
-- iOS simulator → `http://127.0.0.1:3000/api/v1`
+- Physical device (local) → your LAN IP: `http://192.168.x.x:3000/api/v1`
+- iOS simulator (local) → `http://127.0.0.1:3000/api/v1`
 
 ## Run
 
 ```bash
 cd mobile
 flutter pub get
-flutter run --dart-define=API_BASE_URL=http://10.0.2.2:3000/api/v1
+flutter run
 ```
 
 ## Tests
