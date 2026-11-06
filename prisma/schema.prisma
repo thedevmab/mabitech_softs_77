@@ -1,0 +1,952 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum PostStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHED
+  ARCHIVED
+}
+
+enum SoftwareStatus {
+  DRAFT
+  PENDING_REVIEW
+  PUBLISHED
+  ARCHIVED
+  REJECTED
+}
+
+enum VerificationStatus {
+  UNVERIFIED
+  PENDING_REVIEW
+  VERIFIED
+  REJECTED
+  INFECTED
+}
+
+enum DistributionChannel {
+  HOSTED_FILE
+  EXTERNAL_URL
+  GOOGLE_PLAY
+}
+
+enum DownloadEventType {
+  INITIATED
+  COMPLETED
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+  CANCELLED
+}
+
+enum PaymentProvider {
+  CHAPA
+  TELEBIRR
+  MANUAL
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+  PENDING
+}
+
+enum AdType {
+  BANNER
+  NATIVE
+  INTERSTITIAL
+  REWARDED
+  SPONSORED
+  CUSTOM
+}
+
+enum AdPlatform {
+  WEBSITE
+  FLUTTER
+  BOTH
+}
+
+enum AdMobPlatform {
+  android
+}
+
+enum AdMobEnvironment {
+  development
+  production
+}
+
+enum NotificationTarget {
+  ALL
+  PREMIUM
+  ROLE
+  CATEGORY
+}
+
+enum NotificationStatus {
+  DRAFT
+  SCHEDULED
+  SENT
+  FAILED
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  DOCUMENT
+  OTHER
+}
+
+enum ReportStatus {
+  OPEN
+  REVIEWED
+  RESOLVED
+  DISMISSED
+}
+
+enum CommentStatus {
+  VISIBLE
+  HIDDEN
+  DELETED
+}
+
+enum PostDeliveryType {
+  NONE
+  FILE
+  LINK
+}
+
+model User {
+  id               String    @id @default(cuid())
+  name             String?
+  email            String    @unique
+  emailVerified    DateTime?
+  image            String?
+  passwordHash     String?
+  status           UserStatus @default(ACTIVE)
+  bio              String?
+  isPremium        Boolean   @default(false)
+  premiumExpiresAt DateTime?
+  lastLoginAt      DateTime?
+  deletedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  accounts         Account[]
+  sessions         Session[]
+  roles            UserRole[]
+  posts            Post[]            @relation("PostAuthor")
+  comments         Comment[]
+  reviews          Review[]
+  favorites        Favorite[]
+  bookmarks        Bookmark[]
+  downloads        DownloadEvent[]
+  subscriptions    Subscription[]
+  payments         Payment[]
+  deviceTokens     DeviceToken[]
+  activityLogs     ActivityLog[]
+  reportsFiled     Report[]          @relation("Reporter")
+  reportsAgainst   Report[]          @relation("ReportedUser")
+  refreshTokens    RefreshToken[]
+  emailTokens      EmailToken[]
+  notifications    NotificationReceipt[]
+  downloadGrants   DownloadGrant[]
+  softwareVerified Software[]        @relation("SoftwareVerifier")
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model Role {
+  id          String           @id @default(cuid())
+  name        String           @unique
+  slug        String           @unique
+  description String?
+  isSystem    Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  users       UserRole[]
+  permissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String           @id @default(cuid())
+  key         String           @unique
+  name        String
+  description String?
+  group       String
+  roles       RolePermission[]
+
+  @@map("permissions")
+}
+
+model UserRole {
+  id     String @id @default(cuid())
+  userId String
+  roleId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@map("user_roles")
+}
+
+model RolePermission {
+  id           String     @id @default(cuid())
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model Category {
+  id          String         @id @default(cuid())
+  name        String
+  slug        String         @unique
+  description String?
+  icon        String?
+  sortOrder   Int            @default(0)
+  isDefault   Boolean        @default(false)
+  parentId    String?
+  parent      Category?      @relation("CategoryTree", fields: [parentId], references: [id])
+  children    Category[]     @relation("CategoryTree")
+  posts       PostCategory[]
+  software    Software[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([sortOrder])
+  @@map("categories")
+}
+
+model Tag {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  slug      String   @unique
+  posts     PostTag[]
+  createdAt DateTime @default(now())
+
+  @@map("tags")
+}
+
+model Post {
+  id              String           @id @default(cuid())
+  title           String
+  slug            String           @unique
+  excerpt         String?
+  content         String           @db.Text
+  featuredImage   String?
+  gallery         String[]
+  videoEmbed      String?
+  status          PostStatus       @default(DRAFT)
+  isFeatured      Boolean          @default(false)
+  isSponsored     Boolean          @default(false)
+  deliveryType    PostDeliveryType @default(NONE)
+  externalUrl     String?
+  linkDescription String?
+  version         String?
+  publisher       String?
+  releaseDate     DateTime?
+  fileId          String?          @unique
+  file            PostFile?        @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  seoTitle        String?
+  seoDescription  String?
+  keywords        String[]
+  socialTitle     String?
+  socialDescription String?
+  socialImage     String?
+  viewCount       Int              @default(0)
+  scheduledAt     DateTime?
+  publishedAt     DateTime?
+  authorId        String
+  author          User             @relation("PostAuthor", fields: [authorId], references: [id])
+  deletedAt       DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  categories      PostCategory[]
+  tags            PostTag[]
+  comments        Comment[]
+  bookmarks       Bookmark[]
+
+  @@index([status, publishedAt])
+  @@index([isFeatured])
+  @@index([createdAt])
+  @@index([deliveryType])
+  @@map("posts")
+}
+
+model PostFile {
+  id              String    @id @default(cuid())
+  originalName    String
+  fileName        String
+  extension       String
+  mimeType        String
+  sizeBytes       BigInt
+  checksumSha256  String
+  storageKey      String
+  storageBucket   String
+  scanResult      String?
+  scannedAt       DateTime?
+  apkPackage      String?
+  apkVersionName  String?
+  apkVersionCode  Int?
+  apkMinSdk       Int?
+  uploadedById    String?
+  downloadCount   Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  post            Post?
+
+  @@index([checksumSha256])
+  @@index([extension])
+  @@map("post_files")
+}
+
+model PostCategory {
+  postId     String
+  categoryId String
+  post       Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([postId, categoryId])
+  @@map("post_categories")
+}
+
+model PostTag {
+  postId String
+  tagId  String
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([postId, tagId])
+  @@map("post_tags")
+}
+
+model Software {
+  id                  String             @id @default(cuid())
+  name                String
+  slug                String             @unique
+  shortDescription    String?
+  description         String             @db.Text
+  iconUrl             String?
+  coverUrl            String?
+  screenshots         String[]
+  developerName       String?
+  officialWebsite     String?
+  categoryId          String?
+  category            Category?          @relation(fields: [categoryId], references: [id])
+  supportedOs         String[]
+  minAndroidVersion   String?
+  channel             DistributionChannel @default(HOSTED_FILE)
+  externalUrl         String?
+  googlePlayUrl       String?
+  isFree              Boolean            @default(true)
+  isPremium           Boolean            @default(false)
+  isFeatured          Boolean            @default(false)
+  status              SoftwareStatus     @default(DRAFT)
+  verificationStatus  VerificationStatus @default(UNVERIFIED)
+  verifiedAt          DateTime?
+  verifiedById        String?
+  verifiedBy          User?              @relation("SoftwareVerifier", fields: [verifiedById], references: [id])
+  downloadCount       Int                @default(0)
+  viewCount           Int                @default(0)
+  releaseDate         DateTime?
+  deletedAt           DateTime?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  versions            SoftwareVersion[]
+  files               SoftwareFile[]
+  downloads           DownloadEvent[]
+  favorites           Favorite[]
+  reviews             Review[]
+  downloadGrants      DownloadGrant[]
+  affiliateCampaignId String?
+  affiliateCampaign   AffiliateCampaign? @relation(fields: [affiliateCampaignId], references: [id])
+
+  @@index([status, verificationStatus])
+  @@index([isFeatured])
+  @@index([createdAt])
+  @@map("software")
+}
+
+model SoftwareVersion {
+  id            String         @id @default(cuid())
+  softwareId    String
+  software      Software       @relation(fields: [softwareId], references: [id], onDelete: Cascade)
+  version       String
+  versionCode   Int?
+  changelog     String?        @db.Text
+  releaseDate   DateTime       @default(now())
+  isLatest      Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  files         SoftwareFile[]
+
+  @@unique([softwareId, version])
+  @@index([softwareId, isLatest])
+  @@map("software_versions")
+}
+
+model SoftwareFile {
+  id                 String             @id @default(cuid())
+  softwareId         String
+  software           Software           @relation(fields: [softwareId], references: [id], onDelete: Cascade)
+  versionId          String?
+  version            SoftwareVersion?   @relation(fields: [versionId], references: [id], onDelete: SetNull)
+  fileName           String
+  originalName       String
+  mimeType           String
+  extension          String
+  sizeBytes          BigInt
+  checksumSha256     String
+  storageKey         String
+  storageBucket      String
+  verificationStatus VerificationStatus @default(PENDING_REVIEW)
+  scanResult         String?
+  scannedAt          DateTime?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  downloadGrants     DownloadGrant[]
+  downloads          DownloadEvent[]
+
+  @@index([softwareId])
+  @@index([checksumSha256])
+  @@map("software_files")
+}
+
+model DownloadEvent {
+  id         String            @id @default(cuid())
+  softwareId String
+  software   Software          @relation(fields: [softwareId], references: [id], onDelete: Cascade)
+  fileId     String?
+  file       SoftwareFile?     @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  userId     String?
+  user       User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  type       DownloadEventType
+  ipHash     String?
+  userAgent  String?
+  eventKey   String?
+  createdAt  DateTime          @default(now())
+
+  @@unique([eventKey])
+  @@index([softwareId, createdAt])
+  @@index([type, createdAt])
+  @@map("download_events")
+}
+
+model DownloadGrant {
+  id         String        @id @default(cuid())
+  tokenHash  String        @unique
+  softwareId String
+  software   Software      @relation(fields: [softwareId], references: [id], onDelete: Cascade)
+  fileId     String
+  file       SoftwareFile  @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  userId     String?
+  user       User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime      @default(now())
+
+  @@index([expiresAt])
+  @@map("download_grants")
+}
+
+model Favorite {
+  id         String   @id @default(cuid())
+  userId     String
+  softwareId String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  software   Software @relation(fields: [softwareId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, softwareId])
+  @@map("favorites")
+}
+
+model Bookmark {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, postId])
+  @@map("bookmarks")
+}
+
+model Comment {
+  id        String        @id @default(cuid())
+  body      String        @db.Text
+  status    CommentStatus @default(VISIBLE)
+  postId    String
+  post      Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parentId  String?
+  parent    Comment?      @relation("CommentThread", fields: [parentId], references: [id])
+  replies   Comment[]     @relation("CommentThread")
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@index([postId, createdAt])
+  @@map("comments")
+}
+
+model Review {
+  id         String   @id @default(cuid())
+  rating     Int
+  title      String?
+  body       String?  @db.Text
+  softwareId String
+  software   Software @relation(fields: [softwareId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, softwareId])
+  @@index([softwareId])
+  @@map("reviews")
+}
+
+model Advertisement {
+  id           String      @id @default(cuid())
+  name         String
+  type         AdType
+  platform     AdPlatform  @default(BOTH)
+  unitId       String?
+  imageUrl     String?
+  destinationUrl String?
+  htmlContent  String?     @db.Text
+  isEnabled    Boolean     @default(true)
+  frequencyCap Int?
+  startAt      DateTime?
+  endAt        DateTime?
+  impressions  Int         @default(0)
+  clicks       Int         @default(0)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  placements   AdPlacement[]
+
+  @@map("advertisements")
+}
+
+model AdPlacement {
+  id          String         @id @default(cuid())
+  key         String         @unique
+  name        String
+  description String?
+  platform    AdPlatform
+  isEnabled   Boolean        @default(true)
+  adId        String?
+  ad          Advertisement? @relation(fields: [adId], references: [id], onDelete: SetNull)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@map("ad_placements")
+}
+
+model SubscriptionPlan {
+  id              String         @id @default(cuid())
+  name            String
+  slug            String         @unique
+  description     String?
+  priceCents      Int
+  currency        String         @default("ETB")
+  intervalDays    Int
+  features        String[]
+  isActive        Boolean        @default(true)
+  isFree          Boolean        @default(false)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  subscriptions   Subscription[]
+
+  @@map("subscription_plans")
+}
+
+model Subscription {
+  id         String             @id @default(cuid())
+  userId     String
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planId     String
+  plan       SubscriptionPlan   @relation(fields: [planId], references: [id])
+  status     SubscriptionStatus @default(PENDING)
+  startsAt   DateTime?
+  endsAt     DateTime?
+  cancelledAt DateTime?
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+  payments   Payment[]
+
+  @@index([userId, status])
+  @@index([endsAt])
+  @@map("subscriptions")
+}
+
+model Payment {
+  id               String          @id @default(cuid())
+  userId           String
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscriptionId   String?
+  subscription     Subscription?   @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  provider         PaymentProvider
+  providerRef      String?
+  amountCents      Int
+  currency         String          @default("ETB")
+  status           PaymentStatus   @default(PENDING)
+  rawPayload       Json?
+  verifiedAt       DateTime?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@unique([provider, providerRef])
+  @@index([status, createdAt])
+  @@map("payments")
+}
+
+model AffiliateCampaign {
+  id          String     @id @default(cuid())
+  name        String
+  slug        String     @unique
+  destinationUrl String
+  disclosure  String?
+  isActive    Boolean    @default(true)
+  clicks      Int        @default(0)
+  conversions Int        @default(0)
+  startAt     DateTime?
+  endAt       DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  software    Software[]
+
+  @@map("affiliate_campaigns")
+}
+
+model SponsoredCampaign {
+  id             String   @id @default(cuid())
+  sponsorName    String
+  title          String
+  description    String?
+  bannerUrl      String?
+  destinationUrl String
+  startAt        DateTime
+  endAt          DateTime
+  isActive       Boolean  @default(true)
+  impressions    Int      @default(0)
+  clicks         Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([isActive, startAt, endAt])
+  @@map("sponsored_campaigns")
+}
+
+model Notification {
+  id          String               @id @default(cuid())
+  title       String
+  body        String
+  imageUrl    String?
+  data        Json?
+  target      NotificationTarget   @default(ALL)
+  targetValue String?
+  status      NotificationStatus   @default(DRAFT)
+  scheduledAt DateTime?
+  sentAt      DateTime?
+  createdById String?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  receipts    NotificationReceipt[]
+
+  @@map("notifications")
+}
+
+model NotificationReceipt {
+  id             String       @id @default(cuid())
+  notificationId String
+  notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  readAt         DateTime?
+  createdAt      DateTime     @default(now())
+
+  @@unique([notificationId, userId])
+  @@map("notification_receipts")
+}
+
+model DeviceToken {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  platform  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("device_tokens")
+}
+
+model ActivityLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action     String
+  entityType String?
+  entityId   String?
+  metadata   Json?
+  ipHash     String?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([entityType, entityId])
+  @@map("activity_logs")
+}
+
+model SiteSettings {
+  id                    String   @id @default("default")
+  platformName          String   @default("Daily Tips")
+  tagline               String   @default("Technology • Knowledge • Innovation")
+  logoUrl               String?
+  faviconUrl            String?
+  description           String?
+  contactEmail          String?
+  contactPhone          String?
+  contactAddress        String?
+  socialLinks           Json?
+  defaultLanguage       String   @default("en")
+  theme                 String   @default("system")
+  adsEnabled            Boolean  @default(false)
+  adsensePublisherId    String?
+  admobAppId            String?
+  monetizationEnabled   Boolean  @default(true)
+  registrationEnabled   Boolean  @default(true)
+  maintenanceMode       Boolean  @default(false)
+  maxUploadBytes        BigInt   @default(524288000)
+  seoTitle              String?
+  seoDescription        String?
+  seoKeywords           String[]
+  uploadAllowedTypes    String[]
+  updatedAt             DateTime @updatedAt
+
+  @@map("site_settings")
+}
+
+model AppSettings {
+  id                     String   @id @default("default")
+  minAppVersion          String   @default("1.0.0")
+  recommendedAppVersion  String   @default("1.0.0")
+  forceUpdate            Boolean  @default(false)
+  updateUrl              String?
+  maintenanceMode        Boolean  @default(false)
+  maintenanceMessage     String?
+  announcementEnabled    Boolean  @default(false)
+  announcementTitle      String?
+  announcementBody       String?
+  contentRefreshSeconds  Int      @default(300)
+  supportedLanguages     String[] @default(["en"])
+  privacyPolicyUrl       String?
+  termsOfServiceUrl      String?
+  featureFlags           Json?
+  adPolicy               Json?
+  branding               Json?
+  homeSections           Json?
+  registrationEnabled    Boolean  @default(true)
+  requireEmailVerify     Boolean  @default(true)
+  updatedAt              DateTime @updatedAt
+
+  @@map("app_settings")
+}
+
+/// Per-platform / environment AdMob remote control (flags + frequency).
+/// Ad unit IDs are recorded for release builds; the public API never returns them.
+model AdMobSettings {
+  id                       String           @id @default(cuid())
+  platform                 AdMobPlatform    @default(android)
+  environment              AdMobEnvironment
+  appId                    String?
+  bannerAdUnitId           String?
+  interstitialAdUnitId     String?
+  nativeAdUnitId           String?
+  appOpenAdUnitId          String?
+  bannerEnabled            Boolean          @default(false)
+  interstitialEnabled      Boolean          @default(false)
+  nativeEnabled            Boolean          @default(false)
+  appOpenEnabled           Boolean          @default(false)
+  bannerOnHome             Boolean          @default(true)
+  bannerOnExplore          Boolean          @default(true)
+  bannerOnArticle          Boolean          @default(true)
+  nativeOnHome             Boolean          @default(true)
+  nativeOnExplore          Boolean          @default(true)
+  interstitialCooldown     Int              @default(300)
+  interstitialSessionLimit Int              @default(5)
+  nativeAdFrequency        Int              @default(5)
+  appOpenCooldown          Int              @default(14400)
+  childDirected            Boolean          @default(false)
+  consentRequired          Boolean          @default(true)
+  updatedAt                DateTime         @updatedAt
+  createdAt                DateTime         @default(now())
+
+  @@unique([platform, environment])
+  @@map("admob_settings")
+}
+
+/// Client-reported AdMob load failures for the admin status panel.
+model AdMobClientError {
+  id        String   @id @default(cuid())
+  format    String
+  code      String?
+  message   String   @db.VarChar(500)
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@map("admob_client_errors")
+}
+
+model MediaAsset {
+  id          String    @id @default(cuid())
+  url         String
+  publicId    String?
+  type        MediaType @default(IMAGE)
+  mimeType    String?
+  width       Int?
+  height      Int?
+  sizeBytes   Int?
+  alt         String?
+  uploadedById String?
+  createdAt   DateTime  @default(now())
+
+  @@map("media_assets")
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model EmailToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId, type])
+  @@map("email_tokens")
+}
+
+model NewsletterSubscriber {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  isActive     Boolean  @default(true)
+  confirmedAt  DateTime?
+  createdAt    DateTime @default(now())
+
+  @@map("newsletter_subscribers")
+}
+
+model Report {
+  id             String       @id @default(cuid())
+  reporterId     String
+  reporter       User         @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  reportedUserId String?
+  reportedUser   User?        @relation("ReportedUser", fields: [reportedUserId], references: [id], onDelete: SetNull)
+  entityType     String
+  entityId       String
+  reason         String
+  details        String?
+  status         ReportStatus @default(OPEN)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([status, createdAt])
+  @@map("reports")
+}
+
+model AnalyticsEvent {
+  id        String   @id @default(cuid())
+  name      String
+  entityType String?
+  entityId  String?
+  userId    String?
+  sessionId String?
+  meta      Json?
+  eventKey  String?
+  createdAt DateTime @default(now())
+
+  @@unique([eventKey])
+  @@index([name, createdAt])
+  @@index([entityType, entityId])
+  @@map("analytics_events")
+}

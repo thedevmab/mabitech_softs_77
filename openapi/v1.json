@@ -1,0 +1,1747 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Daily Tips Flutter API",
+    "version": "1.0.0",
+    "description": "Versioned REST API for the Daily Tips Flutter mobile client. Responses use `{ data }` on success and `{ error: { code, message } }` on failure. Post payloads include `readingTimeMinutes`. Clients should send a stable `eventKey` for idempotent post views."
+  },
+  "servers": [
+    {
+      "url": "/api/v1"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {}
+            },
+            "required": [
+              "code",
+              "message"
+            ]
+          }
+        }
+      },
+      "Pagination": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "integer"
+          },
+          "limit": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer"
+          },
+          "totalPages": {
+            "type": "integer"
+          }
+        }
+      },
+      "AuthTokens": {
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string"
+          },
+          "accessTokenExpiresIn": {
+            "type": "integer"
+          },
+          "refreshToken": {
+            "type": "string"
+          },
+          "refreshTokenExpiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "email": {
+            "type": "string"
+          },
+          "image": {
+            "type": "string",
+            "nullable": true
+          },
+          "bio": {
+            "type": "string",
+            "nullable": true
+          },
+          "isPremium": {
+            "type": "boolean"
+          },
+          "premiumExpiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "emailVerified": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PostFile": {
+        "type": "object",
+        "nullable": true,
+        "properties": {
+          "name": { "type": "string" },
+          "extension": { "type": "string" },
+          "mimeType": { "type": "string" },
+          "sizeBytes": { "type": "integer" },
+          "isApk": { "type": "boolean" },
+          "downloadCount": { "type": "integer" },
+          "apk": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "packageName": { "type": "string", "nullable": true },
+              "versionName": { "type": "string", "nullable": true },
+              "versionCode": { "type": "integer", "nullable": true },
+              "minSdkVersion": { "type": "integer", "nullable": true }
+            }
+          }
+        }
+      },
+      "Post": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "slug": { "type": "string" },
+          "excerpt": { "type": "string", "nullable": true },
+          "content": { "type": "string" },
+          "featuredImage": { "type": "string", "nullable": true },
+          "deliveryType": {
+            "type": "string",
+            "enum": ["none", "file", "link"]
+          },
+          "externalUrl": { "type": "string", "nullable": true },
+          "linkDescription": { "type": "string", "nullable": true },
+          "version": { "type": "string", "nullable": true },
+          "publisher": { "type": "string", "nullable": true },
+          "releaseDate": { "type": "string", "format": "date-time", "nullable": true },
+          "file": { "$ref": "#/components/schemas/PostFile" },
+          "readingTimeMinutes": { "type": "integer" },
+          "isFeatured": { "type": "boolean" },
+          "isSponsored": { "type": "boolean" }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/auth/register": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Register a new user",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "password"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 8
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Registered"
+          },
+          "409": {
+            "description": "Email taken",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Login and receive JWT tokens",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "password"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "password": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authenticated"
+          },
+          "401": {
+            "description": "Invalid credentials"
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Revoke a refresh token",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "refreshToken": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Logged out"
+          }
+        }
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Rotate refresh token and issue a new access token",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "refreshToken"
+                ],
+                "properties": {
+                  "refreshToken": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Tokens rotated"
+          },
+          "401": {
+            "description": "Invalid refresh token"
+          }
+        }
+      }
+    },
+    "/auth/forgot-password": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Request a password reset email",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Always succeeds (no enumeration)"
+          }
+        }
+      }
+    },
+    "/auth/reset-password": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Reset password with email token",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "token",
+                  "password"
+                ],
+                "properties": {
+                  "token": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 8
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password updated"
+          },
+          "400": {
+            "description": "Invalid token"
+          }
+        }
+      }
+    },
+    "/posts": {
+      "get": {
+        "tags": [
+          "Content"
+        ],
+        "summary": "List published posts",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "featured",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated posts"
+          }
+        }
+      }
+    },
+    "/posts/featured": {
+      "get": {
+        "tags": [
+          "Content"
+        ],
+        "summary": "Featured posts",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Featured posts"
+          }
+        }
+      }
+    },
+    "/posts/trending": {
+      "get": {
+        "tags": [
+          "Content"
+        ],
+        "summary": "Trending posts by view count",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 10
+            }
+          },
+          {
+            "name": "days",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 7
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Trending posts"
+          }
+        }
+      }
+    },
+    "/posts/{slug}": {
+      "get": {
+        "tags": [
+          "Content"
+        ],
+        "summary": "Get post by slug or id",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "comments",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Post detail including readingTimeMinutes and deliveryType"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/posts/{slug}/download": {
+      "get": {
+        "tags": [
+          "Content"
+        ],
+        "summary": "Issue a short-lived signed URL for a post file download (public, rate-limited)",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Signed download URL and file metadata. installed is always false."
+          },
+          "404": {
+            "description": "Post or file not found"
+          },
+          "429": {
+            "description": "Rate limited"
+          }
+        }
+      }
+    },
+    "/posts/{slug}/bookmark": {
+      "post": {
+        "tags": [
+          "Engagement"
+        ],
+        "summary": "Bookmark a post",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bookmark created"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Engagement"
+        ],
+        "summary": "Remove a bookmark",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bookmark removed"
+          }
+        }
+      }
+    },
+    "/home": {
+      "get": {
+        "tags": [
+          "Content"
+        ],
+        "summary": "Home layout sections with hydrated items from posts, software, and sponsored campaigns",
+        "responses": {
+          "200": {
+            "description": "Ordered enabled home sections"
+          }
+        }
+      }
+    },
+    "/sponsored": {
+      "get": {
+        "tags": [
+          "Ads"
+        ],
+        "summary": "Active in-window sponsored campaign banners",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sponsored banners"
+          }
+        }
+      }
+    },
+    "/posts/{id}/views": {
+      "post": {
+        "tags": [
+          "Engagement"
+        ],
+        "summary": "Record a post view (idempotent via eventKey)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Post id or slug"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "eventKey": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "View recorded or deduped"
+          }
+        }
+      }
+    },
+    "/posts/{id}/comments": {
+      "post": {
+        "tags": [
+          "Engagement"
+        ],
+        "summary": "Create a comment",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "body"
+                ],
+                "properties": {
+                  "body": {
+                    "type": "string"
+                  },
+                  "parentId": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Comment created"
+          }
+        }
+      }
+    },
+    "/categories": {
+      "get": {
+        "tags": [
+          "Categories"
+        ],
+        "summary": "List categories",
+        "responses": {
+          "200": {
+            "description": "Category tree"
+          }
+        }
+      }
+    },
+    "/categories/{slug}": {
+      "get": {
+        "tags": [
+          "Categories"
+        ],
+        "summary": "Category detail with posts or software",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "include",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "posts",
+                "software"
+              ],
+              "default": "posts"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Category with items"
+          }
+        }
+      }
+    },
+    "/software": {
+      "get": {
+        "tags": [
+          "Software"
+        ],
+        "summary": "List published verified software",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "channel",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "HOSTED_FILE",
+                "EXTERNAL_URL",
+                "GOOGLE_PLAY"
+              ]
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "featured",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "premium",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated software"
+          }
+        }
+      }
+    },
+    "/software/featured": {
+      "get": {
+        "tags": [
+          "Software"
+        ],
+        "summary": "Featured software",
+        "responses": {
+          "200": {
+            "description": "Featured software"
+          }
+        }
+      }
+    },
+    "/software/{slug}": {
+      "get": {
+        "tags": [
+          "Software"
+        ],
+        "summary": "Software detail by slug or id",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "installedVersionCode",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Client-reported installed version; never inferred from downloads"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Software detail with distribution channel payload"
+          }
+        }
+      }
+    },
+    "/software/{id}/versions": {
+      "get": {
+        "tags": [
+          "Software"
+        ],
+        "summary": "Version history",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Software id or slug"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Versions"
+          }
+        }
+      }
+    },
+    "/software/{id}/download": {
+      "get": {
+        "tags": [
+          "Software"
+        ],
+        "summary": "Issue DownloadGrant / outbound URL (never claims install)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fileId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "versionId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Short-lived download URL or external/store link; installed is always false"
+          },
+          "403": {
+            "description": "Premium required"
+          }
+        }
+      }
+    },
+    "/software/{id}/reviews": {
+      "post": {
+        "tags": [
+          "Engagement"
+        ],
+        "summary": "Create or update a review",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "rating"
+                ],
+                "properties": {
+                  "rating": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 5
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "body": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Review saved"
+          }
+        }
+      }
+    },
+    "/software/{id}/favorite": {
+      "post": {
+        "tags": [
+          "Engagement"
+        ],
+        "summary": "Toggle favorite",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Favorite toggled"
+          }
+        }
+      }
+    },
+    "/users/me": {
+      "get": {
+        "tags": [
+          "User"
+        ],
+        "summary": "Current user profile",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Profile"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "User"
+        ],
+        "summary": "Update profile",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "bio": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "image": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated profile"
+          }
+        }
+      }
+    },
+    "/users/me/downloads": {
+      "get": {
+        "tags": [
+          "User"
+        ],
+        "summary": "Download history",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Downloads"
+          }
+        }
+      }
+    },
+    "/users/me/favorites": {
+      "get": {
+        "tags": [
+          "User"
+        ],
+        "summary": "Favorite software",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Favorites"
+          }
+        }
+      }
+    },
+    "/users/me/bookmarks": {
+      "get": {
+        "tags": [
+          "User"
+        ],
+        "summary": "Bookmarked posts",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bookmarks"
+          }
+        }
+      }
+    },
+    "/monetization/config": {
+      "get": {
+        "tags": [
+          "Monetization"
+        ],
+        "summary": "Monetization config for the app",
+        "responses": {
+          "200": {
+            "description": "Config"
+          }
+        }
+      }
+    },
+    "/ads/config": {
+      "get": {
+        "tags": [
+          "Monetization"
+        ],
+        "summary": "Ad placements and consent policy",
+        "responses": {
+          "200": {
+            "description": "Ads config; consentRequired before any ad loads"
+          }
+        }
+      }
+    },
+    "/subscriptions/plans": {
+      "get": {
+        "tags": [
+          "Monetization"
+        ],
+        "summary": "Active subscription plans",
+        "responses": {
+          "200": {
+            "description": "Plans"
+          }
+        }
+      }
+    },
+    "/subscriptions/verify": {
+      "post": {
+        "tags": [
+          "Monetization"
+        ],
+        "summary": "Verify payment server-side (Chapa/Telebirr); never activates from client claim alone",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "provider",
+                  "providerRef"
+                ],
+                "properties": {
+                  "provider": {
+                    "type": "string",
+                    "enum": [
+                      "CHAPA",
+                      "TELEBIRR"
+                    ]
+                  },
+                  "providerRef": {
+                    "type": "string"
+                  },
+                  "planId": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Premium activated after provider verification"
+          },
+          "503": {
+            "description": "Payment provider not configured"
+          }
+        }
+      }
+    },
+    "/notifications": {
+      "get": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "User notifications",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "unread",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Notifications"
+          }
+        }
+      }
+    },
+    "/notifications/register-device": {
+      "post": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Register FCM/device token",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "token"
+                ],
+                "properties": {
+                  "token": {
+                    "type": "string"
+                  },
+                  "platform": {
+                    "type": "string",
+                    "enum": [
+                      "android",
+                      "ios",
+                      "web",
+                      "other"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Device registered"
+          }
+        }
+      }
+    },
+    "/app/settings": {
+      "get": {
+        "tags": [
+          "App"
+        ],
+        "summary": "App and site settings including tagline, branding, homeSections, and contact/social",
+        "responses": {
+          "200": {
+            "description": "Expanded settings payload for Flutter remote branding and home layout"
+          }
+        }
+      }
+    },
+    "/downloads/complete": {
+      "post": {
+        "tags": [
+          "Downloads"
+        ],
+        "summary": "Mark download COMPLETED by eventKey (never sets installed)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "eventKey"
+                ],
+                "properties": {
+                  "eventKey": {
+                    "type": "string"
+                  },
+                  "softwareId": {
+                    "type": "string"
+                  },
+                  "fileId": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Completed; installed always false"
+          }
+        }
+      }
+    },
+    "/downloads/local": {
+      "get": {
+        "tags": [
+          "Downloads"
+        ],
+        "summary": "Serve local storage file after grant or signed short-lived key",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "grant",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "exp",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "sig",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "filename",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "File stream"
+          },
+          "403": {
+            "description": "Invalid authorization"
+          }
+        }
+      }
+    },
+    "/articles": {
+      "get": {
+        "tags": [
+          "Content"
+        ],
+        "summary": "Alias of GET /posts",
+        "responses": {
+          "200": {
+            "description": "Paginated posts"
+          }
+        }
+      }
+    },
+    "/articles/{slug}": {
+      "get": {
+        "tags": [
+          "Content"
+        ],
+        "summary": "Alias of GET /posts/{slug}",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Post detail"
+          }
+        }
+      }
+    },
+    "/me": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Alias of GET /users/me",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current user"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Alias of PATCH /users/me",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated user"
+          }
+        }
+      }
+    },
+    "/app/config": {
+      "get": {
+        "tags": [
+          "App"
+        ],
+        "summary": "Alias of GET /app/settings",
+        "responses": {
+          "200": {
+            "description": "App config"
+          }
+        }
+      }
+    },
+    "/app/version": {
+      "get": {
+        "tags": [
+          "App"
+        ],
+        "summary": "Min/recommended version and force-update URL",
+        "responses": {
+          "200": {
+            "description": "Version policy"
+          }
+        }
+      }
+    },
+    "/devices": {
+      "post": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Alias of POST /notifications/register-device",
+        "responses": {
+          "200": {
+            "description": "Device registered"
+          }
+        }
+      }
+    },
+    "/devices/{id}": {
+      "delete": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Unregister device by id or token",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted"
+          }
+        }
+      }
+    },
+    "/ai-tools": {
+      "get": {
+        "tags": [
+          "Content"
+        ],
+        "summary": "Published software in AI tool categories",
+        "responses": {
+          "200": {
+            "description": "AI tools list"
+          }
+        }
+      }
+    },
+    "/downloads": {
+      "get": {
+        "tags": [
+          "Downloads"
+        ],
+        "summary": "Alias of GET /software (downloadable catalog)",
+        "responses": {
+          "200": {
+            "description": "Software list"
+          }
+        }
+      }
+    },
+    "/downloads/{id}": {
+      "get": {
+        "tags": [
+          "Downloads"
+        ],
+        "summary": "Software detail by id or slug",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Software detail"
+          }
+        }
+      }
+    },
+    "/auth/verify-otp": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Verify email OTP / token (rate limited)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "otp"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string"
+                  },
+                  "otp": {
+                    "type": "string"
+                  },
+                  "purpose": {
+                    "type": "string",
+                    "enum": [
+                      "email_verification",
+                      "password_reset"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Verified"
+          },
+          "429": {
+            "description": "Rate limited"
+          }
+        }
+      }
+    },
+    "/analytics/events": {
+      "post": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Ingest analytics event",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "entityType": {
+                    "type": "string"
+                  },
+                  "entityId": {
+                    "type": "string"
+                  },
+                  "sessionId": {
+                    "type": "string"
+                  },
+                  "eventKey": {
+                    "type": "string"
+                  },
+                  "meta": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Accepted"
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "App"
+        ],
+        "summary": "Safe integration health (no secrets)",
+        "responses": {
+          "200": {
+            "description": "Health status"
+          }
+        }
+      }
+    }
+  }
+}
