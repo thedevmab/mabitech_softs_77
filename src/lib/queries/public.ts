@@ -1,5 +1,11 @@
+import { connection } from "next/server";
 import { prisma } from "@/lib/db";
 import type { Prisma } from "@prisma/client";
+
+/** Defer database work until a real request so production builds do not prerender it. */
+async function onRequest() {
+  await connection();
+}
 
 function publishedPostWhere(): Prisma.PostWhereInput {
   return {
@@ -40,6 +46,7 @@ export async function getPublishedPosts(opts?: {
   categorySlugs?: string[];
   skip?: number;
 }) {
+  await onRequest();
   const where: Prisma.PostWhereInput = {
     ...publishedPostWhere(),
     ...(opts?.featured ? { isFeatured: true } : {}),
@@ -48,16 +55,21 @@ export async function getPublishedPosts(opts?: {
       : {}),
   };
 
-  return prisma.post.findMany({
-    where,
-    include: postListInclude,
-    orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
-    take: opts?.take ?? 12,
-    skip: opts?.skip ?? 0,
-  });
+  try {
+    return await prisma.post.findMany({
+      where,
+      include: postListInclude,
+      orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
+      take: opts?.take ?? 12,
+      skip: opts?.skip ?? 0,
+    });
+  } catch {
+    return [];
+  }
 }
 
 export async function getPostBySlug(slug: string) {
+  await onRequest();
   return prisma.post.findFirst({
     where: { slug, ...publishedPostWhere() },
     include: {
@@ -88,6 +100,7 @@ export async function getPublishedSoftware(opts?: {
   orderByDownloads?: boolean;
   skip?: number;
 }) {
+  await onRequest();
   const where: Prisma.SoftwareWhereInput = {
     ...publishedSoftwareWhere(),
     ...(opts?.featured ? { isFeatured: true } : {}),
@@ -109,18 +122,23 @@ export async function getPublishedSoftware(opts?: {
       : {}),
   };
 
-  return prisma.software.findMany({
-    where,
-    include: softwareListInclude,
-    orderBy: opts?.orderByDownloads
-      ? [{ downloadCount: "desc" }, { createdAt: "desc" }]
-      : [{ createdAt: "desc" }],
-    take: opts?.take ?? 12,
-    skip: opts?.skip ?? 0,
-  });
+  try {
+    return await prisma.software.findMany({
+      where,
+      include: softwareListInclude,
+      orderBy: opts?.orderByDownloads
+        ? [{ downloadCount: "desc" }, { createdAt: "desc" }]
+        : [{ createdAt: "desc" }],
+      take: opts?.take ?? 12,
+      skip: opts?.skip ?? 0,
+    });
+  } catch {
+    return [];
+  }
 }
 
 export async function getSoftwareBySlug(slug: string) {
+  await onRequest();
   return prisma.software.findFirst({
     where: { slug, ...publishedSoftwareWhere() },
     include: {
@@ -143,20 +161,26 @@ export async function getSoftwareBySlug(slug: string) {
 }
 
 export async function getCategories() {
-  return prisma.category.findMany({
-    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-    include: {
-      _count: {
-        select: {
-          posts: true,
-          software: true,
+  await onRequest();
+  try {
+    return await prisma.category.findMany({
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+      include: {
+        _count: {
+          select: {
+            posts: true,
+            software: true,
+          },
         },
       },
-    },
-  });
+    });
+  } catch {
+    return [];
+  }
 }
 
 export async function getCategoryBySlug(slug: string) {
+  await onRequest();
   return prisma.category.findUnique({
     where: { slug },
     include: {
@@ -167,8 +191,13 @@ export async function getCategoryBySlug(slug: string) {
 }
 
 export async function getSubscriptionPlans() {
-  return prisma.subscriptionPlan.findMany({
-    where: { isActive: true },
-    orderBy: { priceCents: "asc" },
-  });
+  await onRequest();
+  try {
+    return await prisma.subscriptionPlan.findMany({
+      where: { isActive: true },
+      orderBy: { priceCents: "asc" },
+    });
+  } catch {
+    return [];
+  }
 }

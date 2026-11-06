@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import { prisma } from "@/lib/db";
 
 export type PublicSiteSettings = {
@@ -34,6 +35,8 @@ const FALLBACK: PublicSiteSettings = {
 };
 
 export async function getSiteSettings(): Promise<PublicSiteSettings> {
+  // Skip the query during `next build` so a deploy does not require a live database.
+  await connection();
   try {
     const settings = await prisma.siteSettings.findUnique({ where: { id: "default" } });
     if (!settings) return FALLBACK;

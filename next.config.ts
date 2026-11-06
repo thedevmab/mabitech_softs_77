@@ -31,6 +31,9 @@ const nextConfig: NextConfig = {
     }
     return config;
   },
+  outputFileTracingExcludes: {
+    "*": ["./mobile/**", "./storage/**", "./backups/**"],
+  },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "**" },

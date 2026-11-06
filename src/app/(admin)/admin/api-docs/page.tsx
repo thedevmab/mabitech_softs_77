@@ -4,39 +4,25 @@ import { requireAdminUser } from "@/lib/admin/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
-async function findOpenApi() {
-  const candidates = [
-    "openapi/v1.json",
-    "public/openapi/v1.json",
-    "openapi.yaml",
-    "openapi.yml",
-    "openapi.json",
-    "public/openapi.yaml",
-    "public/openapi.yml",
-    "public/openapi.json",
-    "docs/openapi.yaml",
-    "docs/openapi.json",
-  ];
-  for (const rel of candidates) {
-    const full = path.join(process.cwd(), rel);
-    try {
-      await fs.access(full);
-      return { rel, full, publicUrl: rel.startsWith("public/") ? `/${rel.slice(7)}` : null };
-    } catch {
-      /* continue */
-    }
-  }
-  return null;
-}
+export const dynamic = "force-dynamic";
 
 export default async function AdminApiDocsPage() {
   await requireAdminUser();
-  const found = await findOpenApi();
+
+  const rel = "public/openapi/v1.json";
+  const full = path.join(/*turbopackIgnore: true*/ process.cwd(), "public", "openapi", "v1.json");
   let preview = "";
-  if (found) {
-    const raw = await fs.readFile(found.full, "utf8");
+  let found = false;
+
+  try {
+    const raw = await fs.readFile(/*turbopackIgnore: true*/ full, "utf8");
     preview = raw.slice(0, 4000);
+    found = true;
+  } catch {
+    found = false;
   }
+
+  const publicUrl = "/openapi/v1.json";
 
   return (
     <div className="space-y-6">
@@ -48,22 +34,18 @@ export default async function AdminApiDocsPage() {
           {found ? (
             <>
               <p className="text-sm text-muted">
-                OpenAPI spec found at <code className="text-primary">{found.rel}</code>
+                OpenAPI spec found at <code className="text-primary">{rel}</code>
               </p>
               <div className="flex flex-wrap gap-2">
-                {found.publicUrl ? (
-                  <Button asChild>
-                    <a href={found.publicUrl} target="_blank" rel="noreferrer">
-                      Open public URL
-                    </a>
-                  </Button>
-                ) : null}
+                <Button asChild>
+                  <a href={publicUrl} target="_blank" rel="noreferrer">
+                    Open public URL
+                  </a>
+                </Button>
                 <Button asChild variant="secondary">
                   <a
                     href={`https://editor.swagger.io/?url=${encodeURIComponent(
-                      found.publicUrl
-                        ? `${process.env.APP_URL || "http://localhost:3000"}${found.publicUrl}`
-                        : "",
+                      `${process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}${publicUrl}`,
                     )}`}
                     target="_blank"
                     rel="noreferrer"
@@ -79,11 +61,9 @@ export default async function AdminApiDocsPage() {
             </>
           ) : (
             <div className="space-y-3 text-sm text-muted">
-              <p>No OpenAPI file was found in the project root, public/, or docs/.</p>
               <p>
-                Add <code className="text-primary">openapi.yaml</code> or{" "}
-                <code className="text-primary">public/openapi.json</code> to enable embedding
-                here.
+                No OpenAPI file was found at{" "}
+                <code className="text-primary">public/openapi/v1.json</code>.
               </p>
               <Button asChild variant="secondary">
                 <a href="https://swagger.io/specification/" target="_blank" rel="noreferrer">

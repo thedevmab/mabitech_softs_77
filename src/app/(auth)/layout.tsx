@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { getSiteSettings } from "@/lib/site";
 
+export const dynamic = "force-dynamic";
+
 export default async function AuthLayout({ children }: { children: React.ReactNode }) {
   const settings = await getSiteSettings();
 
